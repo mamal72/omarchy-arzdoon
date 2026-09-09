@@ -678,7 +678,7 @@ Panel {
                         }
                         Text {
                             width: parent.width
-                            text: "Version 1.0.0 · MIT License"
+                            text: "Version 1.0.1 · MIT License"
                             color: root.dim
                             font.family: root.family
                             font.pixelSize: Style.font.caption

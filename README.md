@@ -88,7 +88,7 @@ omarchy plugin validate .
 python -m unittest discover -s tests -v
 ```
 
-GitHub Actions runs the test suite on Python 3.12, 3.13, and 3.14, checks Python formatting and types, validates the manifest, and parses both QML entry points. Pushing a version tag such as `v1.0.0` publishes a GitHub release after every check passes; the tag must match the version in `manifest.json`.
+GitHub Actions runs the test suite on Python 3.12, 3.13, and 3.14, checks Python formatting and types, validates the manifest, and parses both QML entry points. Pushing a version tag such as `v1.0.1` publishes a GitHub release after every check passes; the tag must match the version in `manifest.json`.
 
 To add another price source, create an adapter under `providers/` with `INFO` and `fetch(timeout)`, then register it in `providers/__init__.py`. Provider adapters return a shared snapshot shape; filtering and display order are applied independently of the provider.
 
