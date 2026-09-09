@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+"""Fetch currency prices and manage Arzdoon's per-provider state."""
+
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
+import json
+import os
+from pathlib import Path
+import sys
+from typing import TypedDict, cast
+
+PLUGIN_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PLUGIN_DIR))
+
+from currency_policy import normalize_snapshot  # noqa: E402
+from providers import get, metadata  # noqa: E402
+from providers.base import CachedSnapshot, ProviderSnapshot, RuntimeSnapshot  # noqa: E402
+
+
+class State(TypedDict):
+    schemaVersion: int
+    provider: str
+    pins: dict[str, list[str]]
+
+
+class StatePayload(TypedDict):
+    schemaVersion: int
+    selectedProvider: str
+    pins: list[str]
+
+
+def default_state_path() -> Path:
+    root = os.environ.get("XDG_STATE_HOME")
+    return (Path(root) if root else Path.home() / ".local/state") / "omarchy/arzdoon/state.json"
+
+
+def default_cache_path() -> Path:
+    root = os.environ.get("XDG_CACHE_HOME")
+    return (Path(root) if root else Path.home() / ".cache") / "arzdoon/snapshot.json"
+
+
+def load_json(path: Path) -> object:
+    try:
+        data: object = json.loads(path.read_text(encoding="utf-8"))
+        return data
+    except (OSError, ValueError):
+        return None
+
+
+def write_json(path: Path, data: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def load_state(path: Path) -> State:
+    raw = load_json(path)
+    if not isinstance(raw, dict):
+        raw = {}
+    raw_pins = raw.get("pins")
+    pins: dict[str, list[str]] = {}
+    if isinstance(raw_pins, dict):
+        for provider, values in raw_pins.items():
+            if isinstance(values, list):
+                pins[str(provider)] = [str(value).upper() for value in values]
+    return {
+        "schemaVersion": 1,
+        "provider": str(raw.get("provider") or "alanchand"),
+        "pins": pins,
+    }
+
+
+def provider_pins(state: State, provider: str) -> list[str]:
+    values = state["pins"].get(provider, [])
+    return values.copy()
+
+
+def toggle_pin(state: State, provider: str, code: str) -> None:
+    code = code.upper()
+    values = provider_pins(state, provider)
+    if code in values:
+        values.remove(code)
+    else:
+        values.append(code)
+    state["pins"][provider] = values
+
+
+def state_payload(state: State) -> StatePayload:
+    provider = state["provider"]
+    return {
+        "schemaVersion": 1,
+        "selectedProvider": provider,
+        "pins": provider_pins(state, provider),
+    }
+
+
+def snapshot(provider_id: str, timeout: float, state: State, cache_path: Path) -> RuntimeSnapshot:
+    provider = get(provider_id)
+    error: str | None = None
+    cache_read_at: str | None = None
+    try:
+        base = normalize_snapshot(provider.fetch(timeout=timeout))
+        cached: CachedSnapshot = {
+            **base,
+            "localUpdatedAt": datetime.now(timezone.utc).isoformat(),
+            "stale": False,
+        }
+        write_json(cache_path, cached)
+    except Exception as exc:
+        raw = load_json(cache_path)
+        if not isinstance(raw, dict):
+            raise RuntimeError(f"{provider_id}: {exc}") from exc
+        raw_provider = raw.get("provider")
+        if not isinstance(raw_provider, dict) or raw_provider.get("id") != provider_id or not raw.get("prices"):
+            raise RuntimeError(f"{provider_id}: {exc}") from exc
+        base = normalize_snapshot(cast(ProviderSnapshot, raw))
+        cached = {
+            **base,
+            "localUpdatedAt": str(raw.get("localUpdatedAt") or raw.get("fetchedAt") or ""),
+            "stale": True,
+        }
+        error = str(exc)
+        cache_read_at = datetime.now(timezone.utc).isoformat()
+
+    current_state = state_payload(state)
+    result: RuntimeSnapshot = {
+        "schemaVersion": cached["schemaVersion"],
+        "provider": cached["provider"],
+        "unit": cached["unit"],
+        "prices": cached["prices"],
+        "localUpdatedAt": cached["localUpdatedAt"],
+        "stale": cached["stale"],
+        "selectedProvider": current_state["selectedProvider"],
+        "pins": current_state["pins"],
+        "providers": metadata(),
+    }
+    if error is not None:
+        result["error"] = error
+    if cache_read_at is not None:
+        result["cacheReadAt"] = cache_read_at
+    return result
+
+
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(description="Currency data bridge for the Arzdoon Omarchy plugin")
+    result.add_argument("--state-file", type=Path, default=default_state_path())
+    result.add_argument("--cache-file", type=Path, default=default_cache_path())
+    sub = result.add_subparsers(dest="command", required=True)
+
+    fetch_parser = sub.add_parser("snapshot")
+    fetch_parser.add_argument("--provider", default="")
+    fetch_parser.add_argument("--timeout", type=float, default=12)
+    sub.add_parser("providers")
+    pin_parser = sub.add_parser("pin")
+    pin_parser.add_argument("code")
+    pin_parser.add_argument("--provider", default="")
+    provider_parser = sub.add_parser("set-provider")
+    provider_parser.add_argument("provider")
+    return result
+
+
+def main() -> int:
+    args = parser().parse_args()
+    state = load_state(args.state_file)
+    try:
+        output: object
+        if args.command == "providers":
+            output = {"providers": metadata()}
+        elif args.command == "set-provider":
+            get(args.provider)
+            state["provider"] = args.provider
+            write_json(args.state_file, state)
+            output = state_payload(state)
+        elif args.command == "pin":
+            provider_id = args.provider or state["provider"]
+            get(provider_id)
+            toggle_pin(state, provider_id, args.code)
+            write_json(args.state_file, state)
+            state["provider"] = provider_id
+            output = state_payload(state)
+        else:
+            provider_id = args.provider or state["provider"]
+            get(provider_id)
+            state["provider"] = provider_id
+            write_json(args.state_file, state)
+            output = snapshot(provider_id, args.timeout, state, args.cache_file)
+        print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
+        return 0
+    except Exception as exc:
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

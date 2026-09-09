@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Set Up Python
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Development Tools
+        if: matrix.python-version == '3.14'
+        run: python -m pip install mypy==2.3.1 ruff==0.16.6
+
+      - name: Validate Manifest
+        run: python -m json.tool manifest.json > /dev/null
+
+      - name: Compile Python Sources
+        run: python -m py_compile bin/arzdoon currency_policy.py providers/*.py tests/test_arzdoon.py
+
+      - name: Run Tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Lint Python
+        if: matrix.python-version == '3.14'
+        run: ruff check .
+
+      - name: Check Python Formatting
+        if: matrix.python-version == '3.14'
+        run: ruff format --check .
+
+      - name: Check Python Types
+        if: matrix.python-version == '3.14'
+        run: mypy bin/arzdoon currency_policy.py providers tests
+
+  qml:
+    name: QML
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Install QML Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes qt6-declarative-dev-tools
+
+      - name: Validate QML
+        run: |
+          /usr/lib/qt6/bin/qmlformat Panel.qml > /dev/null
+          /usr/lib/qt6/bin/qmlformat Service.qml > /dev/null
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, qml]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Verify Version Tag
+        run: |
+          version="$(python3 -c 'import json; print(json.load(open("manifest.json"))["version"])')"
+          test "$GITHUB_REF_NAME" = "v$version"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "Arzdoon $GITHUB_REF_NAME"

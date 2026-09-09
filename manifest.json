@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "id": "arzdoon",
+  "name": "Arzdoon",
+  "version": "1.0.0",
+  "author": "Mohamad Jahani",
+  "license": "MIT",
+  "description": "Live Iranian currency prices with selectable bar rates.",
+  "kinds": ["service", "bar-widget"],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Arzdoon",
+    "description": "Live currency prices with selectable bar rates.",
+    "category": "Finance",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "provider": "alanchand",
+      "refreshMinutes": 5,
+      "maxPinned": 3
+    },
+    "schema": [
+      {
+        "key": "provider",
+        "type": "enum",
+        "label": "Price Provider",
+        "options": ["alanchand"],
+        "defaultValue": "alanchand",
+        "description": "More provider adapters can be added without changing the panel."
+      },
+      {
+        "key": "refreshMinutes",
+        "type": "integer",
+        "label": "Refresh Interval (Minutes)",
+        "min": 1,
+        "max": 60,
+        "step": 1,
+        "defaultValue": 5
+      },
+      {
+        "key": "maxPinned",
+        "type": "integer",
+        "label": "Maximum Rates in Bar",
+        "min": 1,
+        "max": 6,
+        "step": 1,
+        "defaultValue": 3
+      }
+    ]
+  }
+}
