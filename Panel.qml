@@ -34,6 +34,8 @@ Panel {
         return Model.sortedRows(service.prices, service.pins);
     }
     readonly property string barLabel: service ? Model.barLabel(service.prices, service.pins, maxPinned, vertical) : "$"
+    readonly property real openPanelIndicatorWidth: button.labelWidth
+    readonly property real openPanelIndicatorHeight: Math.max(Style.space(10), Math.round(Style.bar.iconSlot * 0.55))
     property string activeSection: "rates"
 
     function configureService(): void {
