@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "arzdoon",
   "name": "Arzdoon",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "Mohamad Jahani",
   "license": "MIT",
   "description": "Arzdoon shows live Iranian rial buy and sell rates in the Omarchy bar. Left-click the $ item for a compact table; use Show in Bar to pin selected sell prices on the bar itself. Middle-click or press R to refresh. If the source is unreachable, the last successful snapshot stays on screen. Settings pick the provider, refresh interval, and how many rates can appear in the bar.",
