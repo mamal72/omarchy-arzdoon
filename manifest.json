@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "arzdoon",
   "name": "Arzdoon",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "Mohamad Jahani",
   "license": "MIT",
   "description": "Live Iranian currency prices with selectable bar rates.",
