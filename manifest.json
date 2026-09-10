@@ -5,7 +5,7 @@
   "version": "1.0.2",
   "author": "Mohamad Jahani",
   "license": "MIT",
-  "description": "Live Iranian currency prices with selectable bar rates.",
+  "description": "Arzdoon shows live Iranian rial buy and sell rates in the Omarchy bar. Left-click the $ item for a compact table; use Show in Bar to pin selected sell prices on the bar itself. Middle-click or press R to refresh. If the source is unreachable, the last successful snapshot stays on screen. Settings pick the provider, refresh interval, and how many rates can appear in the bar.",
   "kinds": ["service", "bar-widget"],
   "entryPoints": {
     "service": "Service.qml",
@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "Arzdoon",
-    "description": "Live currency prices with selectable bar rates.",
+    "description": "Live Iranian buy and sell rates, with optional sell prices in the bar.",
     "category": "Finance",
     "allowMultiple": false,
     "defaultSection": "right",
