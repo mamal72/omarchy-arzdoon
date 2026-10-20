@@ -88,4 +88,9 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "Arzdoon $GITHUB_REF_NAME"
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists; reusing it."
+          else
+            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "Arzdoon $GITHUB_REF_NAME"
+          fi
