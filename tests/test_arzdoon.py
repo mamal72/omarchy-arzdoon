@@ -36,7 +36,6 @@ class AlanChandProviderTests(unittest.TestCase):
         self.assertNotIn("Bitcoin", json.dumps(result, ensure_ascii=False))
         self.assertEqual(result["unit"], "toman")
 
-
     def test_caps_rows_and_rejects_unsafe_codes(self) -> None:
         def row(code: str) -> str:
             return (
