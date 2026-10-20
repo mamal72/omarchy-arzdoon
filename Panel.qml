@@ -194,6 +194,7 @@ Panel {
                             radius: Style.cornerRadius
                             color: Style.selectedFillFor(root.fg, Color.accent)
                             Text {
+                                textFormat: Text.PlainText
                                 anchors.centerIn: parent
                                 text: ""
                                 color: root.fg
@@ -288,6 +289,7 @@ Panel {
                                 height: parent.height
                                 spacing: root.tableColumnGap
                                 Text {
+                                    textFormat: Text.PlainText
                                     width: root.currencyColumnWidth
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "Code"
@@ -298,6 +300,7 @@ Panel {
                                     horizontalAlignment: Text.AlignHCenter
                                 }
                                 Text {
+                                    textFormat: Text.PlainText
                                     width: root.buyColumnWidth
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "Buy"
@@ -308,6 +311,7 @@ Panel {
                                     horizontalAlignment: Text.AlignHCenter
                                 }
                                 Text {
+                                    textFormat: Text.PlainText
                                     width: root.sellColumnWidth
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "Sell"
@@ -318,6 +322,7 @@ Panel {
                                     horizontalAlignment: Text.AlignHCenter
                                 }
                                 Text {
+                                    textFormat: Text.PlainText
                                     width: root.barColumnWidth
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "Show in Bar"
@@ -331,6 +336,7 @@ Panel {
                         }
 
                         Text {
+                            textFormat: Text.PlainText
                             visible: !service || service.phase === "loading"
                             width: parent.width
                             text: "Fetching Iranian currency prices…"
@@ -347,6 +353,7 @@ Panel {
                             width: parent.width
                             spacing: Style.spacing.lg
                             Text {
+                                textFormat: Text.PlainText
                                 width: parent.width
                                 text: "Could not load prices. Check the connection and refresh."
                                 color: Color.urgent
@@ -396,6 +403,7 @@ Panel {
                                                 radius: Math.min(8, Style.cornerRadius)
                                                 color: Style.normalFillFor(root.fg, Color.accent)
                                                 Text {
+                                                    textFormat: Text.PlainText
                                                     anchors.centerIn: parent
                                                     text: modelData.code.substring(0, 3)
                                                     color: root.fg
@@ -406,6 +414,7 @@ Panel {
                                             }
                                         }
                                         Text {
+                                            textFormat: Text.PlainText
                                             width: root.buyColumnWidth
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: Model.formatPrice(modelData.buy)
@@ -415,6 +424,7 @@ Panel {
                                             horizontalAlignment: Text.AlignHCenter
                                         }
                                         Text {
+                                            textFormat: Text.PlainText
                                             width: root.sellColumnWidth
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: Model.formatPrice(modelData.sell) + "  " + Model.directionGlyph(modelData.direction)
@@ -449,6 +459,7 @@ Panel {
                             width: parent.width
                             height: Math.max(unitLabel.implicitHeight, sourceLink.implicitHeight)
                             Text {
+                                textFormat: Text.PlainText
                                 id: unitLabel
                                 anchors.left: parent.left
                                 anchors.verticalCenter: parent.verticalCenter
@@ -458,6 +469,7 @@ Panel {
                                 font.pixelSize: Style.font.caption
                             }
                             Text {
+                                textFormat: Text.PlainText
                                 id: sourceLink
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
@@ -497,6 +509,7 @@ Panel {
                             fontFamily: root.family
                         }
                         Text {
+                            textFormat: Text.PlainText
                             width: parent.width
                             text: "Choose how often Arzdoon fetches fresh market prices."
                             color: root.dim
@@ -556,6 +569,7 @@ Panel {
                                     }
                                 }
                                 Text {
+                                    textFormat: Text.PlainText
                                     text: "Saved automatically · next refresh uses the new interval"
                                     color: root.dim
                                     font.family: root.family
@@ -574,6 +588,7 @@ Panel {
                             fontFamily: root.family
                         }
                         Text {
+                            textFormat: Text.PlainText
                             width: parent.width
                             text: "Select the source used for currency prices."
                             color: root.dim
@@ -609,6 +624,7 @@ Panel {
                             fontFamily: root.family
                         }
                         Text {
+                            textFormat: Text.PlainText
                             width: parent.width
                             text: "A native Omarchy bar plugin for live Iranian currency prices."
                             color: root.fg
@@ -617,6 +633,7 @@ Panel {
                             wrapMode: Text.WordWrap
                         }
                         Text {
+                            textFormat: Text.PlainText
                             width: parent.width
                             text: "Created and maintained by Mohamad Jahani."
                             color: root.dim
@@ -677,6 +694,7 @@ Panel {
                             }
                         }
                         Text {
+                            textFormat: Text.PlainText
                             width: parent.width
                             text: "Version 1.0.4 · MIT License"
                             color: root.dim

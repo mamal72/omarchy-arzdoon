@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import cast
 
 from currency_policy import CANONICAL_ORDER, normalize_prices
-from providers.alanchand import parse
-from providers.base import PriceRow
+from providers.alanchand import numeric_value, parse
+from providers.base import MAX_PRICE_ROWS, PriceRow
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -35,6 +35,27 @@ class AlanChandProviderTests(unittest.TestCase):
         self.assertEqual(result["prices"][2]["direction"], "down")
         self.assertNotIn("Bitcoin", json.dumps(result, ensure_ascii=False))
         self.assertEqual(result["unit"], "toman")
+
+
+    def test_caps_rows_and_rejects_unsafe_codes(self) -> None:
+        def row(code: str) -> str:
+            return (
+                f"<tr onclick=\"window.location='/en/{code}'\">"
+                "<td class='currName'>N</td><td class='buyPrice'>1</td>"
+                "<td class='sellPrice'>2</td></tr>"
+            )
+
+        rows = "".join(row(f"C{index}") for index in range(MAX_PRICE_ROWS + 50))
+        result = parse(f"<table class='CurrencyTbl'>{rows}{row('bad<code>')}</table>")
+
+        self.assertEqual(len(result["prices"]), MAX_PRICE_ROWS)
+        self.assertTrue(all("<" not in price["code"] for price in result["prices"]))
+
+    def test_rejects_non_finite_and_oversized_numbers(self) -> None:
+        self.assertIsNone(numeric_value("nan"))
+        self.assertIsNone(numeric_value("1e999"))
+        self.assertIsNone(numeric_value("9" * 30))
+        self.assertEqual(numeric_value("1,234"), 1234)
 
 
 class CurrencyPolicyTests(unittest.TestCase):
@@ -86,6 +107,17 @@ class StateTests(unittest.TestCase):
             self.assertEqual(pinned["selectedProvider"], "alanchand")
             self.assertEqual(removed["pins"], [])
             self.assertNotIn("favorites", removed)
+
+    def test_rejects_invalid_pin_codes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state.json"
+            completed = subprocess.run(
+                [str(ROOT / "bin/arzdoon"), "--state-file", str(state), "pin", "bad;code"],
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertFalse(state.exists())
 
 
 if __name__ == "__main__":

@@ -2,12 +2,23 @@
 
 from __future__ import annotations
 
+import math
 import re
+import time
 from html.parser import HTMLParser
 from typing import TypedDict
 from urllib.request import Request, urlopen
 
-from .base import PriceRow, ProviderInfo, ProviderSnapshot
+from .base import (
+    MAX_NAME_LENGTH,
+    MAX_PRICE_ROWS,
+    MAX_PRICE_VALUE,
+    MAX_RESPONSE_BYTES,
+    PriceRow,
+    ProviderInfo,
+    ProviderSnapshot,
+    valid_code,
+)
 
 INFO = ProviderInfo("alanchand", "AlanChand", "https://alanchand.com/")
 
@@ -33,12 +44,15 @@ def ascii_number(value: str) -> str:
 
 def numeric_value(value: str) -> int | float | None:
     cleaned = ascii_number(value).replace(",", "")
-    if not cleaned or cleaned == "-":
+    if not cleaned or cleaned == "-" or len(cleaned) > 24:
         return None
     try:
-        return float(cleaned) if "." in cleaned else int(cleaned)
+        number = float(cleaned) if "." in cleaned else int(cleaned)
     except ValueError:
         return None
+    if not math.isfinite(number) or abs(number) > MAX_PRICE_VALUE:
+        return None
+    return number
 
 
 class CurrencyTableParser(HTMLParser):
@@ -116,11 +130,11 @@ class CurrencyTableParser(HTMLParser):
             if self.current_row.get("name") and self.current_row.get("sellText"):
                 url = self.current_row.get("url", "")
                 code = url.rstrip("/").rsplit("/", 1)[-1].upper() if url else ""
-                if code:
+                if valid_code(code) and len(self.rows) < MAX_PRICE_ROWS:
                     self.rows.append(
                         {
                             "code": code,
-                            "name": self.current_row["name"],
+                            "name": self.current_row["name"][:MAX_NAME_LENGTH],
                             "buy": numeric_value(self.current_row["buyText"]),
                             "sell": numeric_value(self.current_row["sellText"]),
                             "direction": self.current_row["direction"],
@@ -170,6 +184,19 @@ def fetch(timeout: float = 12) -> ProviderSnapshot:
             ),
         },
     )
+    deadline = time.monotonic() + timeout
     with urlopen(request, timeout=timeout) as response:
         charset = response.headers.get_content_charset() or "utf-8"
-        return parse(response.read().decode(charset, errors="replace"))
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            if time.monotonic() > deadline:
+                raise TimeoutError("response took too long")
+            chunk = response.read(64 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > MAX_RESPONSE_BYTES:
+                raise ValueError("response is too large")
+            chunks.append(chunk)
+    return parse(b"".join(chunks).decode(charset, errors="replace"))

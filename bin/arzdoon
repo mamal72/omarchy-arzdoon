@@ -16,7 +16,17 @@ sys.path.insert(0, str(PLUGIN_DIR))
 
 from currency_policy import normalize_snapshot  # noqa: E402
 from providers import get, metadata  # noqa: E402
-from providers.base import CachedSnapshot, ProviderSnapshot, RuntimeSnapshot  # noqa: E402
+from providers.base import (  # noqa: E402
+    MAX_PRICE_ROWS,
+    MAX_RESPONSE_BYTES,
+    CachedSnapshot,
+    ProviderSnapshot,
+    RuntimeSnapshot,
+    valid_code,
+)
+
+MAX_PINS = 32
+MAX_ERROR_LENGTH = 300
 
 
 class State(TypedDict):
@@ -43,10 +53,18 @@ def default_cache_path() -> Path:
 
 def load_json(path: Path) -> object:
     try:
-        data: object = json.loads(path.read_text(encoding="utf-8"))
+        with path.open("rb") as handle:
+            raw = handle.read(MAX_RESPONSE_BYTES + 1)
+        if len(raw) > MAX_RESPONSE_BYTES:
+            return None
+        data: object = json.loads(raw.decode("utf-8"))
         return data
     except (OSError, ValueError):
         return None
+
+
+def short_error(exc: object) -> str:
+    return " ".join(str(exc).split())[:MAX_ERROR_LENGTH]
 
 
 def write_json(path: Path, data: object) -> None:
@@ -65,7 +83,9 @@ def load_state(path: Path) -> State:
     if isinstance(raw_pins, dict):
         for provider, values in raw_pins.items():
             if isinstance(values, list):
-                pins[str(provider)] = [str(value).upper() for value in values]
+                pins[str(provider)] = [
+                    code for code in (str(value).upper() for value in values) if valid_code(code)
+                ][:MAX_PINS]
     return {
         "schemaVersion": 1,
         "provider": str(raw.get("provider") or "alanchand"),
@@ -80,10 +100,12 @@ def provider_pins(state: State, provider: str) -> list[str]:
 
 def toggle_pin(state: State, provider: str, code: str) -> None:
     code = code.upper()
+    if not valid_code(code):
+        raise ValueError("invalid currency code")
     values = provider_pins(state, provider)
     if code in values:
         values.remove(code)
-    else:
+    elif len(values) < MAX_PINS:
         values.append(code)
     state["pins"][provider] = values
 
@@ -112,17 +134,25 @@ def snapshot(provider_id: str, timeout: float, state: State, cache_path: Path) -
     except Exception as exc:
         raw = load_json(cache_path)
         if not isinstance(raw, dict):
-            raise RuntimeError(f"{provider_id}: {exc}") from exc
+            raise RuntimeError(f"{provider_id}: {short_error(exc)}") from exc
         raw_provider = raw.get("provider")
         if not isinstance(raw_provider, dict) or raw_provider.get("id") != provider_id or not raw.get("prices"):
-            raise RuntimeError(f"{provider_id}: {exc}") from exc
+            raise RuntimeError(f"{provider_id}: {short_error(exc)}") from exc
+        cached_prices = raw.get("prices")
+        if not isinstance(cached_prices, list):
+            raise RuntimeError(f"{provider_id}: {short_error(exc)}") from exc
+        raw["prices"] = [
+            row
+            for row in cached_prices[:MAX_PRICE_ROWS]
+            if isinstance(row, dict) and valid_code(str(row.get("code") or ""))
+        ]
         base = normalize_snapshot(cast(ProviderSnapshot, raw))
         cached = {
             **base,
             "localUpdatedAt": str(raw.get("localUpdatedAt") or raw.get("fetchedAt") or ""),
             "stale": True,
         }
-        error = str(exc)
+        error = short_error(exc)
         cache_read_at = datetime.now(timezone.utc).isoformat()
 
     current_state = state_payload(state)
@@ -190,7 +220,7 @@ def main() -> int:
         print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
         return 0
     except Exception as exc:
-        print(json.dumps({"error": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        print(json.dumps({"error": short_error(exc)}, ensure_ascii=False), file=sys.stderr)
         return 1
 
 
